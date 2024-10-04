@@ -1,0 +1,91 @@
+#include <U8g2lib.h>
+#include <AiEsp32RotaryEncoder.h>
+#include <FreeRTOS.h>
+
+// OLED Display setup
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
+
+// Encoder setup
+#define ROTARY_ENCODER_A_PIN 34
+#define ROTARY_ENCODER_B_PIN 35
+#define ROTARY_ENCODER_BUTTON_PIN 32
+
+AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(ROTARY_ENCODER_A_PIN, ROTARY_ENCODER_B_PIN, ROTARY_ENCODER_BUTTON_PIN);
+
+// Pac-Man and Ghosts Sprites (example arrays)
+const uint8_t pacmanSprite[] = { /* Your Pac-Man sprite data */ };
+const uint8_t ghostSprite[] = { /* Your Ghost sprite data */ };
+
+// Global Variables
+volatile int selectedChannel = 0; // Current selected channel
+volatile bool loopRunning = false; // Loop status
+
+// Function Prototypes
+void drawUI();
+void taskLooper(void *pvParameters);
+void handleEncoder();
+
+void setup() {
+    // Initialize the OLED display
+    u8g2.begin();
+    
+    // Initialize the encoder
+    rotaryEncoder.begin();
+    rotaryEncoder.setBoundaries(0, 15); // Set boundaries for steps
+
+    // Create a FreeRTOS task for the looper
+    xTaskCreate(taskLooper, "LooperTask", 2048, NULL, 1, NULL);
+}
+
+void loop() {
+    // Handle encoder input
+    handleEncoder();
+
+    // Draw the UI on the OLED display
+    drawUI();
+}
+
+void drawUI() {
+    u8g2.clearBuffer(); // Clear the buffer
+
+    // Draw Pac-Man at current step position
+    int stepPosition = rotaryEncoder.getPosition();
+    u8g2.drawBitmap(stepPosition * 8, 32, 16, 16, pacmanSprite); // Adjust position as needed
+
+    // Draw food dots for each step
+    for (int i = 0; i < 16; i++) {
+        if (/* condition to check if food is present */) {
+            u8g2.drawCircle(i * 8 + 4, 40, 3); // Food dot position
+        }
+    }
+
+    u8g2.sendBuffer(); // Send buffer to display
+}
+
+void handleEncoder() {
+    if (rotaryEncoder.encoderChanged()) {
+        selectedChannel = rotaryEncoder.getPosition(); // Update selected channel based on encoder position
+        loopRunning = false; // Pause loop when changing settings
+    }
+
+    if (rotaryEncoder.isButtonPressed()) {
+        loopRunning = !loopRunning; // Toggle loop state on button press
+        if (loopRunning) {
+            // Start looping logic here
+        } else {
+            // Pause logic here
+        }
+    }
+}
+
+void taskLooper(void *pvParameters) {
+    while (true) {
+        if (loopRunning) {
+            // Trigger logic for each step in the sequencer goes here
+            
+            vTaskDelay(pdMS_TO_TICKS(100)); // Delay to control loop speed
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(50)); // Delay when paused to reduce CPU usage
+        }
+    }
+}
